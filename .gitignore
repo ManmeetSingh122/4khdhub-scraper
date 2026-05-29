@@ -8,3 +8,5 @@ export.json
 export.m3u
 library.json
 .env
+Player/__pycache__/
+streaming-app/.gitignore

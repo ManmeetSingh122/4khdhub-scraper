@@ -1,0 +1,978 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4KHDHub Automation</title>
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #242424;
+    --border: #333;
+    --accent: #ff9800;
+    --accent2: #e65100;
+    --text: #e0e0e0;
+    --muted: #888;
+    --green: #4caf50;
+    --red: #f44336;
+    --blue: #2196f3;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; min-height: 100vh; }
+
+  /* Layout */
+  .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 16px; }
+  .header h1 { font-size: 1.3rem; color: var(--accent); }
+  .header .stats { margin-left: auto; display: flex; gap: 16px; font-size: 0.85rem; color: var(--muted); }
+  .header .stats span { color: var(--text); font-weight: 600; }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+  /* Add panel */
+  .add-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 24px; }
+  .add-panel h2 { font-size: 1rem; color: var(--accent); margin-bottom: 14px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+  .tab-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: all .2s; }
+  .tab-btn.active { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 600; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .input-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  input[type=text], input[type=number], textarea {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    padding: 9px 12px; border-radius: 6px; font-size: 0.9rem; outline: none;
+    transition: border-color .2s;
+  }
+  input[type=text]:focus, textarea:focus { border-color: var(--accent); }
+  input[type=text] { flex: 1; min-width: 280px; }
+  input[type=number] { width: 80px; }
+  textarea { width: 100%; min-height: 100px; resize: vertical; font-family: monospace; font-size: 0.82rem; }
+
+  .btn { padding: 9px 18px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.88rem; font-weight: 600; transition: all .2s; }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-danger { background: transparent; color: var(--red); border: 1px solid var(--red); padding: 5px 10px; font-size: 0.78rem; }
+  .btn-danger:hover { background: var(--red); color: #fff; }
+  .btn-sm { padding: 5px 12px; font-size: 0.78rem; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Toast */
+  #toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; font-size: 0.88rem; z-index: 9999; opacity: 0; transform: translateY(10px); transition: all .3s; pointer-events: none; max-width: 320px; }
+  #toast.show { opacity: 1; transform: translateY(0); }
+  #toast.success { border-color: var(--green); color: var(--green); }
+  #toast.error { border-color: var(--red); color: var(--red); }
+  #toast.info { border-color: var(--blue); color: var(--blue); }
+
+  /* Toolbar */
+  .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+  .search-box { flex: 1; min-width: 200px; }
+  .filter-btns { display: flex; gap: 6px; }
+  .filter-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 0.82rem; }
+  .filter-btn.active { border-color: var(--accent); color: var(--accent); }
+
+  /* Library grid */
+  .library-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; transition: border-color .2s; }
+  .card:hover { border-color: var(--accent); }
+  .card-header { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .card-title { font-size: 0.95rem; font-weight: 600; color: var(--text); line-height: 1.3; }
+  .card-meta { font-size: 0.75rem; color: var(--muted); margin-top: 3px; }
+  .badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; margin-right: 4px; }
+  .badge-movie { background: #1e40af; color: #fff; }
+  .badge-tv { background: #15803d; color: #fff; }
+  .card-body { padding: 12px 16px; }
+
+  /* Streams */
+  .section-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 6px; margin-top: 10px; }
+  .stream-list { display: flex; flex-direction: column; gap: 5px; }
+  .stream-item { display: flex; align-items: center; gap: 8px; background: var(--surface2); border-radius: 6px; padding: 7px 10px; }
+  .stream-name { font-size: 0.78rem; color: var(--muted); min-width: 100px; }
+  .stream-url { font-size: 0.75rem; color: var(--accent); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; }
+  .stream-url:hover { text-decoration: underline; }
+  .copy-btn { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 0.7rem; white-space: nowrap; }
+  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .play-btn { background: var(--accent); border: none; color: #000; padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 0.7rem; font-weight: 700; white-space: nowrap; }
+  .play-btn:hover { background: var(--accent2); }
+  .stream-btn { background: #15803d; border: none; color: #fff; padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 0.7rem; font-weight: 700; white-space: nowrap; }
+  .stream-btn:hover { background: #166534; }
+  .stream-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  #raw-error pre { margin: 12px 0 0; color: #ffb8b8; white-space: pre-wrap; word-break: break-word; font-size: .78rem; line-height: 1.45; max-height: 280px; overflow: auto; }
+
+  /* Downloads */
+  .dl-group { margin-bottom: 8px; }
+  .dl-quality { font-size: 0.78rem; color: var(--text); font-weight: 600; margin-bottom: 4px; }
+  .dl-links { display: flex; gap: 6px; flex-wrap: wrap; }
+  .dl-link { font-size: 0.75rem; padding: 4px 10px; border-radius: 5px; text-decoration: none; background: var(--surface2); border: 1px solid var(--border); color: var(--text); transition: all .2s; }
+  .dl-link:hover { border-color: var(--accent); color: var(--accent); }
+  .dl-resolve { font-size: 0.75rem; padding: 4px 10px; border-radius: 5px; background: var(--green); border: 1px solid var(--green); color: #fff; cursor: pointer; font-weight: 700; }
+  .dl-resolve:hover { filter: brightness(1.08); }
+
+  /* Card actions */
+  .card-actions { padding: 10px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty .icon { font-size: 3rem; margin-bottom: 12px; }
+
+  /* Loading spinner */
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Progress bar */
+  .progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 8px; display: none; }
+  .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width .3s; }
+
+  @media (max-width: 600px) {
+  .player-modal { display: none; position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,.92); align-items: center; justify-content: center; flex-direction: column; }
+  .player-modal.open { display: flex; }
+  .player-wrap { position: relative; width: 92vw; max-width: 1100px; aspect-ratio: 16/9; background: #000; border-radius: 8px; overflow: hidden; }
+  .player-wrap iframe { width: 100%; height: 100%; border: none; }
+  .player-top { width: 92vw; max-width: 1100px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .player-title { font-size: 1rem; font-weight: 600; color: var(--text); }
+  .player-sources { display: flex; gap: 6px; flex-wrap: wrap; }
+  .src-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); padding: 5px 12px; border-radius: 5px; cursor: pointer; font-size: 0.78rem; }
+  .src-btn.active { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 700; }
+  .player-close { background: transparent; border: 1px solid var(--border); color: var(--text); padding: 5px 12px; border-radius: 5px; cursor: pointer; font-size: 0.82rem; margin-left: 12px; }
+  .player-close:hover { border-color: var(--red); color: var(--red); }
+    .input-row { flex-direction: column; }
+    .library-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>ðŸŽ¬ 4KHDHub Automation</h1>
+  <div class="stats">
+    Total: <span id="stat-total">0</span> &nbsp;|&nbsp;
+    Movies: <span id="stat-movies">0</span> &nbsp;|&nbsp;
+    Series: <span id="stat-series">0</span>
+  </div>
+  <div style="display:flex;gap:8px;margin-left:16px;">
+    <button class="btn btn-secondary btn-sm" onclick="exportM3U()">â¬‡ M3U</button>
+    <button class="btn btn-secondary btn-sm" onclick="exportJSON()">â¬‡ JSON</button>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- Add Panel -->
+  <div class="add-panel">
+    <h2>Add to Library</h2>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('single')">Single URL</button>
+      <button class="tab-btn" onclick="switchTab('bulk')">Bulk URLs</button>
+    </div>
+
+    <!-- Single -->
+    <div class="tab-content active" id="tab-single">
+      <div class="input-row">
+        <input type="text" id="single-url" placeholder="https://4khdhub.link/movie-name-1234/" />
+        <input type="number" id="single-season" placeholder="S" min="1" value="1" title="Season (TV only)" />
+        <input type="number" id="single-episode" placeholder="E" min="1" value="1" title="Episode (TV only)" />
+        <button class="btn btn-primary" id="add-btn" onclick="addSingle()">Add</button>
+      </div>
+      <div class="progress-bar" id="single-progress"><div class="progress-fill" id="single-fill"></div></div>
+    </div>
+
+    <!-- Bulk -->
+    <div class="tab-content" id="tab-bulk">
+      <textarea id="bulk-urls" placeholder="Paste one URL per line:&#10;https://4khdhub.link/movie-a-1234/&#10;https://4khdhub.link/movie-b-5678/&#10;# Lines starting with # are ignored"></textarea>
+      <div style="margin-top:10px;display:flex;gap:10px;align-items:center;">
+        <button class="btn btn-primary" id="bulk-btn" onclick="addBulk()">Add All</button>
+        <span id="bulk-status" style="font-size:0.82rem;color:var(--muted);"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <input type="text" class="search-box" id="search" placeholder="Search library..." oninput="renderLibrary()" />
+    <div class="filter-btns">
+      <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">All</button>
+      <button class="filter-btn" data-filter="movie" onclick="setFilter('movie')">Movies</button>
+      <button class="filter-btn" data-filter="tv" onclick="setFilter('tv')">Series</button>
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="loadLibrary()">â†» Refresh</button>
+  </div>
+
+  <!-- Library -->
+  <div class="library-grid" id="library-grid"></div>
+  <div class="empty" id="empty-state" style="display:none;">
+    <div class="icon">ðŸŽžï¸</div>
+    <p>No items yet. Add a 4KHDHub URL above to get started.</p>
+  </div>
+
+</div>
+
+<div id="player-modal" class="player-modal" onclick="closePlayerOnBg(event)">
+  <div class="player-top">
+    <div>
+      <div class="player-title" id="player-title"></div>
+      <div class="player-sources" id="player-sources"></div>
+    </div>
+    <button class="player-close" onclick="closePlayer()">âœ• Close</button>
+  </div>
+  <div class="player-wrap">
+    <iframe id="player-iframe" allowfullscreen allow="autoplay; fullscreen; encrypted-media" referrerpolicy="origin"></iframe>
+  </div>
+</div>
+
+<!-- Raw Stream Modal -->
+<div id="raw-modal" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.85);align-items:center;justify-content:center;" onclick="if(event.target===this)closeRawModal()">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:90vw;max-width:700px;max-height:80vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div>
+        <div style="font-size:1rem;font-weight:700;color:var(--text);" id="raw-title"></div>
+        <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;" id="raw-source"></div>
+      </div>
+      <button onclick="closeRawModal()" style="background:transparent;border:1px solid var(--border);color:var(--text);padding:5px 12px;border-radius:5px;cursor:pointer;">âœ•</button>
+    </div>
+    <div id="raw-loading" style="text-align:center;padding:30px;color:var(--muted);">
+      <div class="spinner" style="width:24px;height:24px;border-width:3px;display:inline-block;"></div>
+      <div style="margin-top:10px;font-size:0.88rem;">Extracting stream via headless browser...<br><span style="font-size:0.78rem;opacity:.7;">default stream ready in ~6s Â· servers load in background</span></div>
+    </div>
+    <div id="raw-result" style="display:none;">
+      <div style="margin-bottom:12px;">
+        <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px;">Raw M3U8 URL</div>
+        <div style="display:flex;gap:8px;align-items:flex-start;">
+          <div id="raw-m3u8" style="font-size:0.78rem;color:var(--accent);word-break:break-all;flex:1;background:var(--surface2);padding:8px 10px;border-radius:6px;font-family:monospace;"></div>
+          <button class="copy-btn" onclick="copyText(document.getElementById('raw-m3u8').textContent)" style="white-space:nowrap;flex-shrink:0;">Copy</button>
+        </div>
+      </div>
+      <div id="raw-lang-selector" style="margin-bottom:12px;"></div>
+      <div style="margin-bottom:16px;">
+        <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px;">Referer</div>
+        <div id="raw-referer" style="font-size:0.78rem;color:var(--muted);font-family:monospace;"></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary btn-sm" onclick="openInPlayer()">â–¶ Play in Netwatch</button>
+        <a id="vlc-link" href="#" class="btn btn-secondary btn-sm" style="text-decoration:none;" onclick="openVlc(event)">ðŸŽ¬ Open in VLC</a>
+        <button class="btn btn-secondary btn-sm" onclick="copyM3u8Only()">Copy URL only</button>
+        <button class="btn btn-secondary btn-sm" onclick="copyVlc()">Copy VLC cmd</button>
+        <button class="btn btn-secondary btn-sm" onclick="copyMpv()">Copy MPV cmd</button>
+        <button class="btn btn-secondary btn-sm" onclick="rerunCurrentExtraction()">â†» Re-extract</button>      </div>
+      <div style="margin-top:12px;padding:10px;background:var(--surface2);border-radius:6px;font-size:0.75rem;color:var(--muted);line-height:1.6;">
+        <strong style="color:var(--text);">How to use:</strong><br>
+        â€¢ <strong>Open in VLC</strong> â€” clicks open VLC directly (if installed)<br>
+        â€¢ <strong>Copy URL only</strong> â€” paste into VLC â†’ Media â†’ Open Network Stream<br>
+        â€¢ <strong>Copy VLC/MPV cmd</strong> â€” paste into a terminal/command prompt<br>
+        â€¢ <strong>Play in App</strong> â€” watch right here in the browser
+      </div>
+    </div>
+    <div id="raw-error" style="display:none;color:var(--red);font-size:0.85rem;padding:12px;background:rgba(244,67,54,.1);border-radius:6px;"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+let library = [];
+let activeFilter = 'all';
+
+// â”€â”€ Tab switching â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    b.classList.toggle('active', (i === 0 && name === 'single') || (i === 1 && name === 'bulk'));
+  });
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+// â”€â”€ Toast â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+let toastTimer;
+function toast(msg, type = 'info') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+// â”€â”€ Stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+async function loadStats() {
+  const r = await fetch('/api/status');
+  const d = await r.json();
+  document.getElementById('stat-total').textContent = d.total;
+  document.getElementById('stat-movies').textContent = d.movies;
+  document.getElementById('stat-series').textContent = d.series;
+}
+
+// â”€â”€ Library â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+async function loadLibrary() {
+  const r = await fetch('/api/library');
+  library = await r.json();
+  renderLibrary();
+  loadStats();
+}
+
+function setFilter(f) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === f));
+  renderLibrary();
+}
+
+function renderLibrary() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const grid = document.getElementById('library-grid');
+  const empty = document.getElementById('empty-state');
+
+  let items = library.filter(e => {
+    if (activeFilter !== 'all' && e.type !== activeFilter) return false;
+    if (q && !e.title.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  if (items.length === 0) {
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  grid.innerHTML = items.map(cardHTML).join('');
+}
+
+function cardHTML(e) {
+  const badgeClass = e.type === 'tv' ? 'badge-tv' : 'badge-movie';
+  const badgeLabel = e.type === 'tv' ? 'Series' : 'Movie';
+  const meta = e.metadata || {};
+  const streams = e.streams || {};
+  const firstSrc = Object.values(streams)[0] || '';
+  const streamsJSON = JSON.stringify(streams).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+  const titleEsc = (e.title || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+  // Streams
+  const streamsHTML = Object.entries(streams).map(([name, url]) => `
+    <div class="stream-item">
+      <span class="stream-name">${name}</span>
+      <a class="stream-url" href="${url}" target="_blank" title="${url}">${url}</a>
+      <button class="copy-btn" onclick="copyText('${url}')">Copy</button>
+      <button class="play-btn"
+        data-title="${(e.title||'').replace(/"/g,'&quot;')}"
+        data-streams="${encodeURIComponent(JSON.stringify(streams))}"
+        data-source="${name}"
+        onclick="openPlayerFromBtn(this)">â–¶ Play</button>
+    </div>
+  `).join('');
+
+  // Downloads
+  const dlHTML = (e.downloads || []).map(dl => {
+    const qualityName = dl.quality.split(/\d+\.\d+\s*GB/)[0].trim();
+    const links = dl.links.map(l => `
+      <a class="dl-link" href="${l.url}" target="_blank">${l.label}</a>
+      <button class="dl-resolve"
+        data-url="${encodeURIComponent(l.url)}"
+        data-title="${encodeURIComponent(e.title || 'Untitled')}"
+        data-quality="${encodeURIComponent(qualityName || dl.quality || '')}"
+        onclick="resolveDownloadFromBtn(this)">Resolve</button>
+    `).join('');
+    return `<div class="dl-group">
+      <div class="dl-quality">${qualityName}</div>
+      <div class="dl-links">${links}</div>
+    </div>`;
+  }).join('');
+
+  return `
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">${e.title}</div>
+        <div class="card-meta">
+          <span class="badge ${badgeClass}">${badgeLabel}</span>
+          ${e.source === 'hdhub4u' ? '<span class="badge" style="background:#7c3aed;color:#fff;">HDHub4u</span>' : '<span class="badge" style="background:#1e40af;color:#fff;">4KHDHub</span>'}
+          ${meta.Release ? `<span style="color:var(--muted);font-size:.75rem;">${meta.Release.substring(0,4)}</span>` : ''}
+          ${meta.Audios ? `<span style="color:var(--muted);font-size:.75rem;margin-left:6px;">${meta.Audios}</span>` : ''}
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        ${firstSrc ? `<button class="play-btn" style="padding:5px 14px;font-size:.8rem;"
+            data-title="${(e.title||'').replace(/"/g,'&quot;')}"
+            data-streams="${encodeURIComponent(JSON.stringify(streams))}"
+            onclick="openPlayerFromBtn(this)">â–¶ Watch</button>` : ''}
+        ${e.tmdb_id || (e.source === 'hdhub4u' && e.streams && Object.values(e.streams)[0])
+          ? `<button class="stream-btn" style="padding:5px 14px;font-size:.8rem;"
+              data-tmdb="${e.tmdb_id || ''}"
+              data-mtype="${e.type || 'movie'}"
+              data-title="${(e.title||'').replace(/"/g,'&quot;')}"
+              data-entryurl="${(e.url||'').replace(/"/g,'&quot;')}"
+              onclick="getStreamFromBtn(this)">âš¡ Raw Stream</button>` : ''}
+        <a href="${e.url}" target="_blank" style="color:var(--muted);font-size:.75rem;white-space:nowrap;">â†— Source</a>
+      </div>
+    </div>
+    <div class="card-body">
+      ${streamsHTML ? `<div class="section-label">Stream URLs</div><div class="stream-list">${streamsHTML}</div>` : '<span style="color:var(--muted);font-size:.8rem;">No stream URLs found</span>'}
+      ${dlHTML ? `<div class="section-label" style="margin-top:12px;">Download Links</div>${dlHTML}` : ''}
+    </div>
+    <div class="card-actions">
+      <button class="btn btn-secondary btn-sm" onclick="refreshEntry('${e.url}')">â†» Refresh</button>
+      <button class="btn btn-danger" onclick="removeEntry('${e.url}')">Remove</button>
+    </div>
+  </div>`;
+}
+
+// â”€â”€ Add single â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+async function addSingle() {
+  const url = document.getElementById('single-url').value.trim();
+  const season = parseInt(document.getElementById('single-season').value) || 1;
+  const episode = parseInt(document.getElementById('single-episode').value) || 1;
+
+  if (!url) { toast('Please enter a URL', 'error'); return; }
+
+  const btn = document.getElementById('add-btn');
+  const bar = document.getElementById('single-progress');
+  const fill = document.getElementById('single-fill');
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Scraping...';
+  bar.style.display = 'block';
+  fill.style.width = '30%';
+
+  try {
+    const r = await fetch('/api/add', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({url, season, episode})
+    });
+    fill.style.width = '100%';
+    const data = await r.json();
+    if (data.error) {
+      toast('Error: ' + data.error, 'error');
+    } else {
+      toast(`Added: ${data.title}`, 'success');
+      document.getElementById('single-url').value = '';
+      await loadLibrary();
+    }
+  } catch(err) {
+    toast('Request failed: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Add';
+    setTimeout(() => { bar.style.display = 'none'; fill.style.width = '0%'; }, 800);
+  }
+}
+
+// â”€â”€ Add bulk â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+async function addBulk() {
+  const raw = document.getElementById('bulk-urls').value.trim();
+  if (!raw) { toast('No URLs entered', 'error'); return; }
+
+  const btn = document.getElementById('bulk-btn');
+  const status = document.getElementById('bulk-status');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Queuing...';
+
+  try {
+    const r = await fetch('/api/add_bulk', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({urls: raw})
+    });
+    const data = await r.json();
+    if (data.error) {
+      toast('Error: ' + data.error, 'error');
+    } else {
+      toast(data.message, 'info');
+      status.textContent = `Processing ${data.queued} URLs in background...`;
+      // Poll library every 3s while processing
+      let polls = 0;
+      const poll = setInterval(async () => {
+        await loadLibrary();
+        polls++;
+        if (polls > 20) clearInterval(poll);
+      }, 3000);
+    }
+  } catch(err) {
+    toast('Request failed: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Add All';
+  }
+}
+
+// â”€â”€ Remove / Refresh â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+async function removeEntry(url) {
+  if (!confirm('Remove this entry from the library?')) return;
+  await fetch('/api/remove', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({url})
+  });
+  toast('Removed', 'info');
+  await loadLibrary();
+}
+
+async function refreshEntry(url) {
+  toast('Re-scraping...', 'info');
+  const r = await fetch('/api/refresh', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({url})
+  });
+  const data = await r.json();
+  if (data.error) {
+    toast('Refresh failed', 'error');
+  } else {
+    toast(`Refreshed: ${data.title}`, 'success');
+    await loadLibrary();
+  }
+}
+
+// â”€â”€ Exports â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function exportM3U() { window.location.href = '/api/export/m3u'; }
+function exportJSON() { window.location.href = '/api/export/json'; }
+
+// â”€â”€ Player â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+let currentSources = {};
+let currentTitle = '';
+
+function openPlayer(title, sources, preferredSource) {
+  currentSources = sources;
+  currentTitle = title;
+  document.getElementById('player-title').textContent = title;
+
+  // Build source buttons
+  const container = document.getElementById('player-sources');
+  container.innerHTML = Object.keys(sources).map(name =>
+    `<button class="src-btn" data-src="${name}" onclick="switchSource('${name}')">${name}</button>`
+  ).join('');
+
+  // Pick source: preferred â†’ VidSrc â†’ first
+  const pick = preferredSource || Object.keys(sources).find(k => k.toLowerCase().includes('vidsrc')) || Object.keys(sources)[0];
+  switchSource(pick);
+
+  document.getElementById('player-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function switchSource(name) {
+  const url = currentSources[name];
+  if (!url) return;
+  document.getElementById('player-iframe').src = url;
+  document.querySelectorAll('.src-btn').forEach(b => b.classList.toggle('active', b.dataset.src === name));
+}
+
+function closePlayer() {
+  document.getElementById('player-modal').classList.remove('open');
+  document.getElementById('player-iframe').src = '';
+  document.body.style.overflow = '';
+}
+
+function closePlayerOnBg(e) {
+  if (e.target === document.getElementById('player-modal')) closePlayer();
+}
+
+
+// â”€â”€ Raw Stream Extraction (Lazy Architecture) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+let currentStreamTmdb = null;
+let currentStreamType = 'movie';
+let currentStreamTitle = '';
+let currentRawResult = null;
+let currentJobId = null;
+let pollTimer = null;
+let currentResolveMode = 'stream'; // stream | direct
+let currentDirectSourceUrl = '';
+
+function getStreamFromBtn(btn) {
+  const tmdbId = btn.dataset.tmdb;
+  const mtype  = btn.dataset.mtype || 'movie';
+  const title  = btn.dataset.title || '';
+  const entryUrl = btn.dataset.entryurl || '';
+  getStream(tmdbId, mtype, title, false, entryUrl);
+}
+
+function resolveDownloadFromBtn(btn) {
+  const url = decodeURIComponent(btn.dataset.url || '').trim();
+  const title = decodeURIComponent(btn.dataset.title || 'Untitled');
+  const quality = decodeURIComponent(btn.dataset.quality || '');
+  if (!url) {
+    toast('No URL to resolve', 'error');
+    return;
+  }
+  resolveDirect(url, title, quality, false);
+}
+
+function openPlayerFromBtn(btn) {
+  const title   = btn.dataset.title || '';
+  const streams = JSON.parse(decodeURIComponent(btn.dataset.streams || '{}'));
+  const source  = btn.dataset.source || null;
+  openPlayer(title, streams, source);
+}
+
+function openRawModal(title, sourceText, loadingHint, urlLabel) {
+  const modal = document.getElementById('raw-modal');
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+
+  document.getElementById('raw-title').textContent = title || 'Untitled';
+  document.getElementById('raw-source').textContent = sourceText || 'Starting...';
+  document.getElementById('raw-loading').style.display = 'block';
+  document.getElementById('raw-result').style.display = 'none';
+  document.getElementById('raw-error').style.display = 'none';
+  document.getElementById('raw-error').textContent = '';
+
+  const labelEl = document.querySelector('#raw-result > div:first-child > div:first-child');
+  if (labelEl) labelEl.textContent = urlLabel || 'Resolved URL';
+
+  const loadingTextEl = document.querySelector('#raw-loading > div:nth-child(2)');
+  if (loadingTextEl) loadingTextEl.innerHTML = loadingHint;
+}
+
+function getPrimaryResolvedUrl() {
+  if (!currentRawResult) return '';
+  return (document.getElementById('raw-m3u8').textContent || currentRawResult.url || currentRawResult.m3u8 || '').trim();
+}
+
+function renderResolvedResult(url, referer, sourceText) {
+  document.getElementById('raw-loading').style.display = 'none';
+  document.getElementById('raw-m3u8').textContent = url || '';
+  document.getElementById('raw-referer').textContent = referer || '';
+  document.getElementById('raw-source').textContent = sourceText || 'Ready';
+  document.getElementById('raw-result').style.display = 'block';
+}
+
+function resolveDirect(downloadUrl, title, quality, forceRefresh = false) {
+  currentResolveMode = 'direct';
+  currentDirectSourceUrl = downloadUrl;
+  currentStreamTmdb  = '';
+  currentStreamType  = 'movie';
+  currentStreamTitle = quality ? `${title} - ${quality}` : title;
+  currentRawResult   = null;
+  currentJobId       = null;
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+
+  openRawModal(
+    currentStreamTitle,
+    'Resolving direct link...',
+    'Resolving final media URL in headless browser...<br><span style="font-size:0.78rem;opacity:.7;">download is cancelled after URL capture</span>',
+    'Resolved Direct URL'
+  );
+  document.getElementById('raw-lang-selector').innerHTML = '';
+
+  fetch('/api/direct/resolve', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      url: downloadUrl,
+      force_refresh: forceRefresh
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) {
+      showRawError(data.error, data);
+      return;
+    }
+    currentRawResult = data;
+    currentRawResult.url = data.url || data.m3u8 || '';
+    currentRawResult.m3u8 = currentRawResult.url;
+    const modeText = data.cached ? 'cached' : 'fresh';
+    renderResolvedResult(
+      currentRawResult.url,
+      data.referer || '',
+      `Source: direct resolver (${modeText})`
+    );
+  })
+  .catch(err => showRawError('Request failed: ' + err.message));
+}
+
+function getStream(tmdbId, mediaType, title, forceRefresh = false, entryUrl = '') {
+  currentResolveMode = 'stream';
+  currentDirectSourceUrl = '';
+  currentStreamTmdb  = tmdbId;
+  currentStreamType  = mediaType;
+  currentStreamTitle = title;
+  currentRawResult   = null;
+  currentJobId       = null;
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+
+  openRawModal(
+    title,
+    'Starting extraction...',
+    'Extracting stream via headless browser...<br><span style="font-size:0.78rem;opacity:.7;">default stream first, extra servers next</span>',
+    'Raw Stream URL'
+  );
+
+  const entry = library.find(e =>
+    (tmdbId && e.tmdb_id === tmdbId) ||
+    (entryUrl && e.url === entryUrl) ||
+    e.title === title
+  );
+  let playerUrl = '';
+  if (entry && entry.source === 'hdhub4u' && entry.streams) {
+    playerUrl = entry.streams['Server 1 (HDStream)'] || Object.values(entry.streams)[0] || '';
+  }
+
+  fetch('/api/stream/start', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      tmdb_id: tmdbId || '',
+      media_type: mediaType,
+      player_url: playerUrl,
+      force_refresh: forceRefresh
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) { showRawError(data.error, data); return; }
+    currentJobId = data.job_id;
+
+    if (data.default) {
+      onDefaultReady(data);
+    } else {
+      document.getElementById('raw-source').textContent =
+        playerUrl ? 'Extracting direct player stream...' : 'Extracting stream...';
+      pollTimer = setInterval(() => pollJob(currentJobId), 1000);
+    }
+  })
+  .catch(err => showRawError('Request failed: ' + err.message));
+}
+
+function pollJob(jobId) {
+  if (jobId !== currentJobId) return;
+  fetch(`/api/stream/status/${jobId}`)
+  .then(r => r.json())
+  .then(data => {
+    if (data.error && !data.default) {
+      showRawError(data.error);
+      clearInterval(pollTimer);
+      return;
+    }
+
+    if (data.default && !currentRawResult) {
+      onDefaultReady(data);
+    }
+
+    if (data.servers && Object.keys(data.servers).length > 0) {
+      updateServerSelector(data.servers);
+    }
+
+    if (data.status === 'done' || data.status === 'error') {
+      clearInterval(pollTimer);
+      pollTimer = null;
+      if (data.status === 'done' && currentRawResult) {
+        const srcName = (currentRawResult.source || 'stream').toLowerCase();
+        document.getElementById('raw-source').textContent =
+          `Source: ${srcName}${data.cached ? ' (cached)' : ' (fresh)'} | ${Object.keys(data.servers || {}).length} servers`;
+      }
+    }
+  })
+  .catch(() => {});
+}
+
+function onDefaultReady(data) {
+  clearInterval(pollTimer);
+  pollTimer = null;
+
+  currentRawResult = data.default;
+  currentRawResult.all_streams = data.servers || {};
+  currentRawResult.url = data.default.url || data.default.m3u8 || '';
+  currentRawResult.m3u8 = currentRawResult.url;
+
+  const srcName = (currentRawResult.source || 'stream').toLowerCase();
+  renderResolvedResult(
+    currentRawResult.url,
+    data.default.referer || '',
+    `Source: ${srcName}${data.cached ? ' (cached)' : ' (fresh)'} | loading servers...`
+  );
+  updateServerSelector(data.servers || {});
+
+  if (data.status !== 'done') {
+    pollTimer = setInterval(() => pollJob(currentJobId), 2000);
+  }
+}
+
+function updateServerSelector(servers) {
+  const keys = Object.keys(servers);
+  if (keys.length === 0) {
+    document.getElementById('raw-lang-selector').innerHTML = '<div style="font-size:0.75rem;color:var(--muted);">No extra server links yet.</div>';
+    return;
+  }
+
+  const html = `<div style="margin-bottom:4px;">
+    <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px;">
+      Servers <span style="font-size:0.65rem;opacity:.6;">(click to switch)</span>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      ${keys.map((k, i) => `<button class="lang-btn${i===0?' lang-active':''}" onclick="selectServer('${k.replace(/'/g, "\\'")}',this)"
+        style="background:var(--surface2);border:1px solid ${i===0?'var(--accent)':'var(--border)'};color:${i===0?'var(--accent)':'var(--muted)'};padding:5px 12px;border-radius:5px;cursor:pointer;font-size:0.78rem;">${k}</button>`).join('')}
+    </div>
+  </div>`;
+  document.getElementById('raw-lang-selector').innerHTML = html;
+}
+
+function selectServer(key, btn) {
+  if (!currentRawResult) return;
+  const allStreams = currentRawResult.all_streams || {};
+  const url = allStreams[key];
+  if (!url) return;
+  document.getElementById('raw-m3u8').textContent = url;
+  document.querySelectorAll('.lang-btn').forEach(b => {
+    b.style.borderColor = 'var(--border)';
+    b.style.color = 'var(--muted)';
+  });
+  btn.style.borderColor = 'var(--accent)';
+  btn.style.color = 'var(--accent)';
+  currentRawResult.url = url;
+  currentRawResult.m3u8 = url;
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[ch]));
+}
+
+function formatResolverTrace(details) {
+  if (!details) return '';
+  const lines = [];
+  if (Array.isArray(details.trusted_domains) && details.trusted_domains.length) {
+    lines.push('Trusted domains: ' + details.trusted_domains.join(', '));
+  }
+  if (details.last_page) {
+    lines.push('Last page: ' + details.last_page);
+  }
+  if (Array.isArray(details.steps) && details.steps.length) {
+    lines.push('');
+    lines.push('Clicked path:');
+    details.steps.forEach((step, index) => {
+      const label = step.clicked || step.href || 'candidate';
+      lines.push(`${index + 1}. ${label} | score ${step.score || 0}`);
+      if (step.page) lines.push(`   page: ${step.page}`);
+      if (step.href) lines.push(`   href: ${step.href}`);
+    });
+  }
+  if (Array.isArray(details.trace) && details.trace.length) {
+    lines.push('');
+    lines.push('Resolver trace:');
+    details.trace.forEach((item, index) => {
+      const parts = Object.entries(item)
+        .filter(([key]) => key !== 'event')
+        .map(([key, value]) => `${key}=${Array.isArray(value) ? value.join(',') : value}`);
+      lines.push(`${index + 1}. ${item.event || 'event'}${parts.length ? ' | ' + parts.join(' | ') : ''}`);
+    });
+  }
+  return lines.join('\n');
+}
+
+function showRawError(msg, details = null) {
+  document.getElementById('raw-loading').style.display = 'none';
+  const errorEl = document.getElementById('raw-error');
+  const trace = formatResolverTrace(details);
+  errorEl.innerHTML = `<div>Error: ${escapeHtml(msg)}</div>` +
+    (trace ? `<pre>${escapeHtml(trace)}</pre>` : '');
+  errorEl.style.display = 'block';
+}
+
+function closeRawModal() {
+  document.getElementById('raw-modal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function openInPlayer() {
+  if (!currentRawResult) return;
+  const finalUrl = getPrimaryResolvedUrl();
+  if (!finalUrl) return;
+  const params = new URLSearchParams({
+    src: finalUrl,
+    title: currentStreamTitle || 'Untitled',
+    type: currentStreamType || 'movie',
+    id: currentStreamTmdb || finalUrl,
+    referer: currentRawResult.referer || '',
+    proxy: '1',
+  });
+  window.open('/player/?' + params.toString(), '_blank');
+  closeRawModal();
+}
+
+function openVlc(e) {
+  e.preventDefault();
+  if (!currentRawResult) return;
+  const finalUrl = getPrimaryResolvedUrl();
+  if (!finalUrl) return;
+  fetch('/api/open_vlc', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({m3u8: finalUrl, referer: currentRawResult.referer || ''})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.ok) {
+      toast('VLC launched!', 'success');
+    } else {
+      navigator.clipboard.writeText(finalUrl);
+      toast((d.error || 'VLC not found') + ' | URL copied for manual open', 'info');
+    }
+  })
+  .catch(() => {
+    navigator.clipboard.writeText(finalUrl);
+    toast('URL copied for manual open', 'info');
+  });
+}
+
+function copyM3u8Only() {
+  if (!currentRawResult) return;
+  const finalUrl = getPrimaryResolvedUrl();
+  if (!finalUrl) return;
+  navigator.clipboard.writeText(finalUrl)
+    .then(() => toast('URL copied', 'success'));
+}
+
+function copyVlc() {
+  if (!currentRawResult) return;
+  const finalUrl = getPrimaryResolvedUrl();
+  if (!finalUrl) return;
+  const cmd = `vlc "${finalUrl}" --http-referrer "${currentRawResult.referer || ''}"`;
+  navigator.clipboard.writeText(cmd).then(() => toast('VLC command copied', 'success'));
+}
+
+function copyMpv() {
+  if (!currentRawResult) return;
+  const finalUrl = getPrimaryResolvedUrl();
+  if (!finalUrl) return;
+  const cmd = `mpv --referrer="${currentRawResult.referer || ''}" "${finalUrl}"`;
+  navigator.clipboard.writeText(cmd).then(() => toast('MPV command copied', 'success'));
+}
+
+function rerunCurrentExtraction() {
+  if (currentResolveMode === 'direct') {
+    const srcUrl = currentDirectSourceUrl || (currentRawResult && currentRawResult.start_url) || '';
+    if (!srcUrl) {
+      toast('No source URL available to re-resolve', 'error');
+      return;
+    }
+    resolveDirect(srcUrl, currentStreamTitle || 'Untitled', '', true);
+    return;
+  }
+  getStream(currentStreamTmdb, currentStreamType, currentStreamTitle, true);
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closePlayer();
+    closeRawModal();
+  }
+});
+
+// â”€â”€ Copy â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => toast('Copied!', 'success'));
+}
+
+// â”€â”€ Enter key on single URL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('single-url').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addSingle();
+  });
+  loadLibrary();
+});
+</script>
+</body>
+</html>
+

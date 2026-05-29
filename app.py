@@ -19,8 +19,8 @@ from flask import Flask, render_template, request, jsonify, send_file, send_from
 from scraper import scrape, export_json, search_4khdhub
 from scraper_hdhub4u import scrape_hdhub4u, search_hdhub4u, _is_hdhub4u_url
 
-PLAYER_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Player'))
-STREAMING_APP_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'streaming-app'))
+PLAYER_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), 'Player'))
+STREAMING_APP_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), 'streaming-app'))
 TMDB_API_KEY = os.environ.get("TMDB_API_KEY", "").strip()
 TMDB_BASE_URL = "https://api.themoviedb.org/3"
 

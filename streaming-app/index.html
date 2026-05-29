@@ -1,0 +1,292 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Netwatch - Movies & Shows</title>
+    <meta name="description" content="A cinematic movie and TV discovery interface for Netwatch.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="./css/styles.css?v=9007">
+    <meta name="theme-color" content="#000000">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
+
+    <!-- Backend URL: set to Railway deployment URL in production.
+         Leave empty string to use same origin (local dev via Flask). -->
+    <script>
+        window.NETWATCH_BACKEND = (function() {
+            var h = window.location.hostname;
+            // Local dev — Flask serves both frontend and backend on same origin
+            if (h === '127.0.0.1' || h === 'localhost') return '';
+            // Production — point to Railway backend
+            return window.NETWATCH_BACKEND_URL || 'https://web-production-aeed3.up.railway.app';
+        })();
+    </script>
+        window.dismissProfileScreen = function(profile = 'main') {
+            const screen = document.getElementById('profile-screen');
+            if(screen) {
+                screen.style.opacity = '0';
+                screen.style.pointerEvents = 'none';
+                setTimeout(() => {
+                    screen.classList.add('hidden');
+                    window.dispatchEvent(new CustomEvent('profileSelected', { detail: { profile } }));
+                    window.dispatchEvent(new Event('startApp')); 
+                }, 700);
+            }
+        };
+    </script>
+</head>
+<body class="bg-black text-white overflow-x-hidden antialiased selection:bg-white/20 selection:text-white pb-32 md:pb-0 transition-colors duration-1000 ease-out" id="body-bg">
+
+    <div id="api-warning" class="fixed top-0 left-0 w-full bg-orange-600/90 backdrop-blur-md text-white text-center py-2 z-[999] hidden font-semibold text-sm shadow-lg">
+        API Key is missing.
+    </div>
+
+    <div id="toast-container" class="fixed top-24 left-1/2 transform -translate-x-1/2 z-[400] flex flex-col gap-2 pointer-events-none" aria-live="polite"></div>
+
+    <!-- Profile Screen -->
+    <div id="profile-screen" class="fixed inset-0 z-[500] flex flex-col items-center justify-center transition-opacity duration-700 profile-screen-bg">
+        <p class="text-white/45 text-xs md:text-sm font-semibold uppercase tracking-[0.28em] mb-4">Netwatch</p>
+        <h1 id="profile-screen-title" class="text-2xl md:text-4xl font-semibold mb-12 tracking-tight text-white/90">Choose a profile</h1>
+        <div class="flex gap-8 md:gap-16">
+                        <button id="profile-card-main" class="profile-card flex flex-col items-center gap-4 cursor-pointer group outline-none" onclick="dismissProfileScreen('main')" aria-label="Use main profile">
+                <div class="profile-avatar profile-avatar-primary pointer-events-none">
+                    <span>Y</span>
+                </div>
+                <span class="profile-card-name text-white/60 group-hover:text-white group-focus:text-white transition-colors text-sm font-medium pointer-events-none">You</span>
+            </button>
+             <button class="profile-card flex flex-col items-center gap-4 cursor-pointer group outline-none" onclick="dismissProfileScreen('kids')" aria-label="Use kids profile">
+                <div class="profile-avatar profile-avatar-kids pointer-events-none">
+                    <svg class="w-10 h-10 text-white/95" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <span class="text-white/60 group-hover:text-white group-focus:text-white transition-colors text-sm font-medium pointer-events-none">Kids</span>
+            </button>
+        </div>
+        <div id="profile-manage-panel" class="profile-manage-panel hidden" aria-label="Profile editor">
+            <label class="profile-manage-label" for="profile-name-input">Rename profile</label>
+            <div class="profile-manage-row">
+                <input id="profile-name-input" class="profile-name-input" type="text" maxlength="18" value="You" autocomplete="off">
+                <button id="save-profile-name-btn" class="profile-save-btn" type="button">Save</button>
+            </div>
+            <button id="done-manage-btn" class="profile-done-btn" type="button">Done</button>
+        </div>
+    </div>
+
+    <!-- Top Navigation -->
+    <nav id="navbar" class="fixed w-full px-4 md:px-10 py-4 flex justify-between items-center z-50 transition-all duration-500 bg-transparent">
+        <div class="flex items-center gap-8 md:gap-12">
+            <button class="brand-lockup cursor-pointer outline-none" onclick="window.location.hash='all'" aria-label="Go to Watch Now">
+                <span class="brand-mark" aria-hidden="true">N</span>
+                <span class="text-white text-xl md:text-2xl font-semibold tracking-tight drop-shadow-md">Netwatch</span>
+            </button>
+            <ul class="hidden md:flex gap-2 text-sm font-semibold text-white/60 liquid-nav-shell" aria-label="Primary navigation">
+                <li><button class="top-nav-item text-white" data-nav="all">Watch Now</button></li>
+                <li><button class="top-nav-item" data-nav="movies">Movies</button></li>
+                <li><button class="top-nav-item" data-nav="tv">Shows</button></li>
+                <li><button class="top-nav-item" data-nav="categories">Categories</button></li>
+                <li><button class="top-nav-item" data-nav="mylist">My List</button></li>
+            </ul>
+        </div>
+        <div class="flex items-center gap-3 md:gap-4">
+            <button id="search-btn" class="icon-glass-btn" aria-label="Search">
+                <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            </button>
+            <button id="profile-btn" class="profile-mini group" aria-label="Profile" aria-expanded="false" aria-controls="profile-menu">
+                <span>Y</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Profile Popover -->
+    <div id="profile-menu" class="profile-menu hidden" role="menu" aria-label="Profile menu">
+        <div class="profile-menu-header">
+            <div class="profile-avatar-small profile-avatar-primary" aria-hidden="true">Y</div>
+            <div>
+                <p class="profile-menu-name">You</p>
+                <p class="profile-menu-subtitle">Current profile</p>
+            </div>
+        </div>
+        <button id="profile-main-btn" class="profile-menu-row" role="menuitem">
+            <span class="profile-avatar-tiny profile-avatar-primary" aria-hidden="true">Y</span>
+            <span class="profile-main-row-name">You</span>
+            <span class="profile-row-state">Active</span>
+        </button>
+        <button id="profile-kids-btn" class="profile-menu-row" role="menuitem">
+            <span class="profile-avatar-tiny profile-avatar-kids" aria-hidden="true">K</span>
+            <span>Kids</span>
+        </button>
+        <div class="profile-menu-divider"></div>
+        <button id="profile-manage-btn" class="profile-menu-row" role="menuitem">Manage Profiles</button>
+        <button id="profile-choose-btn" class="profile-menu-row" role="menuitem">Choose Profile</button>
+    </div>
+
+    <!-- Search Overlay -->
+    <div id="search-overlay" class="fixed inset-0 bg-black/72 z-[200] hidden flex-col search-glass animate-fade-in pt-24 px-5 md:px-12">
+        <div class="flex items-center border-b border-white/15 pb-4 relative max-w-6xl mx-auto w-full">
+            <svg class="w-7 h-7 text-white/50 absolute left-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <input type="search" id="search-input" class="w-full bg-transparent text-white text-3xl md:text-5xl outline-none pl-12 font-semibold placeholder-white/25" placeholder="Search movies, shows, people" autocomplete="off">
+            <button id="close-search-btn" class="icon-glass-btn ml-4" aria-label="Close search">&times;</button>
+        </div>
+        <div class="mt-8 overflow-y-auto no-scrollbar h-full pb-24 max-w-6xl mx-auto w-full">
+            <div id="search-status" class="text-white/50 text-sm font-semibold mb-6 tracking-wide">Suggested Searches</div>
+            <div id="search-results" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6">
+                <!-- Search results injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Detached Bottom Navigation -->
+    <div class="md:hidden fixed bottom-6 left-0 right-0 w-full z-50 px-4 flex justify-center pointer-events-none">
+        <nav class="mobile-dock liquid-glass flex justify-between items-center px-4 py-3 gap-4 pointer-events-auto" aria-label="Mobile navigation">
+            <button class="mobile-nav-item flex flex-col items-center gap-1 text-white transition-transform active:scale-90 outline-none w-12" data-nav="all" aria-label="Watch Now">
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path></svg>
+                <div class="nav-indicator w-1 h-1 bg-white rounded-full transition-opacity duration-300 opacity-100 mt-1"></div>
+            </button>
+            <button class="mobile-nav-item flex flex-col items-center gap-1 text-white/50 hover:text-white transition-transform active:scale-90 outline-none w-12" data-nav="movies" aria-label="Movies">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"></path></svg>
+                <div class="nav-indicator w-1 h-1 bg-white rounded-full transition-opacity duration-300 opacity-0 mt-1"></div>
+            </button>
+            <button class="mobile-nav-item flex flex-col items-center gap-1 text-white/50 hover:text-white transition-transform active:scale-90 outline-none w-12" data-nav="tv" aria-label="Shows">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2V7zm5 12h6"></path></svg>
+                <div class="nav-indicator w-1 h-1 bg-white rounded-full transition-opacity duration-300 opacity-0 mt-1"></div>
+            </button>
+            <button class="mobile-nav-item flex flex-col items-center gap-1 text-white/50 hover:text-white transition-transform active:scale-90 outline-none w-12" data-nav="categories" aria-label="Categories">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h6v6h-6v-6z"></path></svg>
+                <div class="nav-indicator w-1 h-1 bg-white rounded-full transition-opacity duration-300 opacity-0 mt-1"></div>
+            </button>
+            <button class="mobile-nav-item flex flex-col items-center gap-1 text-white/50 hover:text-white transition-transform active:scale-90 outline-none w-12" data-nav="mylist" aria-label="My List">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-4-7 4V5z"></path></svg>
+                <div class="nav-indicator w-1 h-1 bg-white rounded-full transition-opacity duration-300 opacity-0 mt-1"></div>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Hero Banner -->
+    <header id="banner" class="h-[84vh] md:h-[92vh] relative flex flex-col justify-end overflow-hidden bg-black" aria-live="polite">
+        
+        <div class="absolute inset-0 z-0 mask-image-bottom">
+            <img id="banner-bg-1" class="absolute inset-0 w-full h-full object-cover object-center transition-all duration-1000 ease-in-out opacity-100 transform scale-100" src="" alt="">
+            <img id="banner-bg-2" class="absolute inset-0 w-full h-full object-cover object-center transition-all duration-1000 ease-in-out opacity-0 transform scale-105" src="" alt="">
+        </div>
+
+        <div id="banner-color-overlay" class="absolute inset-0 z-0 transition-colors duration-1000 mix-blend-multiply opacity-30"></div>
+        <div class="absolute inset-0 z-0 banner-gradient pointer-events-none"></div>
+        
+        <div class="z-10 px-5 md:px-16 pb-24 md:pb-32 max-w-3xl relative">
+            <p id="banner_kicker" class="hero-kicker transform translate-y-4 opacity-0 transition-all duration-700 ease-apple">Featured</p>
+            <img id="banner_title_img" src="" alt="Movie Title" class="h-16 md:h-24 object-contain object-left mb-6 transform translate-y-4 opacity-0 transition-all duration-700 ease-apple delay-100 filter drop-shadow-lg hidden">
+            <h1 id="banner_title" class="text-4xl md:text-7xl font-semibold pb-2 tracking-tight leading-[0.95] drop-shadow-lg transform translate-y-4 opacity-0 transition-all duration-700 ease-apple delay-100"></h1>
+            
+            <p id="banner_description" class="text-sm md:text-base pt-2 leading-relaxed max-w-[90%] md:max-w-xl font-medium text-white/80 line-clamp-3 transform translate-y-4 opacity-0 transition-all duration-700 ease-apple delay-200"></p>
+
+            <div id="banner_meta" class="hero-meta flex gap-3 text-xs md:text-sm font-semibold text-white/70 mt-5 transform translate-y-4 opacity-0 transition-all duration-700 ease-apple delay-250 items-center">
+                <span id="banner_rating" class="text-white"></span>
+                <span class="w-1 h-1 rounded-full bg-white/30"></span>
+                <span id="banner_year"></span>
+                <span class="w-1 h-1 rounded-full bg-white/30"></span>
+                <span id="banner_genres"></span>
+            </div>
+            
+            <div id="banner_buttons" class="flex flex-row gap-4 mt-8 transform translate-y-4 opacity-0 transition-all duration-700 ease-apple delay-300">
+                <button id="main_play_btn" class="primary-action">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
+                    Play
+                </button>
+                <button id="banner_info_btn" class="secondary-action">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 20.5a8.5 8.5 0 100-17 8.5 8.5 0 000 17z"></path></svg>
+                    More Info
+                </button>
+            </div>
+        </div>
+        
+        <div class="absolute right-6 md:right-16 bottom-24 md:bottom-32 flex gap-2 z-20">
+            <div class="w-1.5 h-1.5 rounded-full bg-white/30 banner-dot transition-all"></div>
+            <div class="w-1.5 h-1.5 rounded-full bg-white/30 banner-dot transition-all"></div>
+            <div class="w-1.5 h-1.5 rounded-full bg-white/30 banner-dot transition-all"></div>
+        </div>
+    </header>
+
+    <!-- Main Content Section -->
+    <main class="-mt-6 md:-mt-12 z-20 relative min-h-screen pb-10">
+        
+        <!-- Category Chips -->
+        <div id="genre-filters" class="px-5 md:px-16 mb-8 flex gap-3 overflow-x-auto no-scrollbar pb-2 pt-2" aria-label="Genre filters">
+            <button class="category-chip" data-category="all" aria-pressed="true">All</button>
+            <button class="category-chip" data-category="action" aria-pressed="false">Action</button>
+            <button class="category-chip" data-category="scifi" aria-pressed="false">Sci-Fi</button>
+            <button class="category-chip" data-category="comedy" aria-pressed="false">Comedy</button>
+            <button class="category-chip" data-category="horror" aria-pressed="false">Horror</button>
+        </div>
+
+        <div id="continue-watching-container" class="hidden mb-10 md:mb-16 pl-5 md:pl-16 relative animate-fade-in">
+            <h2 class="text-white/90 text-lg md:text-xl font-semibold mb-4 tracking-wide">Continue Watching</h2>
+            <div id="continue-watching-row" class="flex overflow-x-scroll no-scrollbar pb-6 pr-6 md:pr-16 space-x-4 md:space-x-6 mask-image-right">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+
+        <div id="movie-rows" class="transition-opacity duration-500 ease-in-out opacity-100 flex flex-col gap-10 md:gap-16">
+            <!-- Content Injected via JS -->
+        </div>
+    </main>
+
+    <!-- Details Bottom Sheet -->
+    <div id="details-sheet" class="fixed inset-0 bg-black/60 z-[120] hidden opacity-0 transition-opacity duration-400 backdrop-blur-sm">
+        <div class="details-panel sheet-glass translate-y-full flex flex-col overflow-hidden" id="details-content">
+            
+            <div class="relative w-full h-56 md:h-72 bg-black/50">
+                <img id="sheet-backdrop" src="" class="w-full h-full object-cover opacity-90 object-center" alt="">
+                <div class="absolute inset-0 sheet-backdrop-gradient"></div>
+                
+                <!-- Pull Indicator -->
+                <div class="absolute top-3 left-1/2 transform -translate-x-1/2 w-12 h-1.5 bg-white/30 rounded-full md:hidden"></div>
+                
+                <button id="sheet-close-btn" class="absolute top-6 right-6 icon-glass-btn z-10" aria-label="Close details">&times;</button>
+            </div>
+
+            <div class="p-6 md:p-10 -mt-16 relative z-10 overflow-y-auto no-scrollbar pb-10">
+                <h2 id="sheet-title" class="text-2xl md:text-3xl font-bold text-white mb-3 leading-tight drop-shadow-md">Title</h2>
+                
+                <div class="flex gap-3 text-xs md:text-sm text-white/60 font-medium items-center mb-6">
+                    <span id="sheet-match" class="text-white font-semibold">98% Match</span>
+                    <span class="w-1 h-1 rounded-full bg-white/30"></span>
+                    <span id="sheet-year">2023</span>
+                    <span class="w-1 h-1 rounded-full bg-white/30"></span>
+                    <span id="sheet-genres-list"></span>
+                </div>
+
+                <div id="sheet-episode-controls" class="hidden grid-cols-2 gap-3 mb-6">
+                    <label class="text-xs font-semibold uppercase tracking-[0.12em] text-white/50">
+                        Season
+                        <select id="sheet-season-input" class="mt-2 w-full rounded-lg border border-white/10 bg-white/[0.08] px-4 py-3 text-base font-semibold text-white outline-none focus:border-white/40 cursor-pointer">
+                            <option value="1">Season 1</option>
+                        </select>
+                    </label>
+                    <label class="text-xs font-semibold uppercase tracking-[0.12em] text-white/50">
+                        Episode
+                        <select id="sheet-episode-input" class="mt-2 w-full rounded-lg border border-white/10 bg-white/[0.08] px-4 py-3 text-base font-semibold text-white outline-none focus:border-white/40 cursor-pointer">
+                            <option value="1">Episode 1</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div class="flex gap-3 mb-8">
+                    <button id="sheet-play-btn" class="primary-action flex-1 justify-center">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
+                        Play
+                    </button>
+                    <button id="sheet-add-list" class="icon-glass-btn add-list-btn" aria-label="Add to My List">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    </button>
+                </div>
+                <p id="sheet-overview" class="text-sm md:text-base leading-relaxed text-white/80 font-normal"></p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="./js/main.js?v=9010"></script>
+</body>
+</html>
+
+
+
+
